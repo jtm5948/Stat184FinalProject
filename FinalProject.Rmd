@@ -1,0 +1,175 @@
+---
+title: "Final Project Report"
+author: "Justin Maines & John Sweetall"
+date: "Due: 05/04/2022"
+output: html_notebook
+---
+
+### Project Overview
+In this project, we will be investigating different kinds of Major League Baseball statistics. One data set shows counting stats and averages of player and the second data set shows advanced analytics such as launch angle and launch velocity. Our guiding research question will be: **What advanced metrics correlate most with proficient counting stats and averages?** This is interesting and important to study because this process is used by MLB teams to evaluate players and find key characteristics that lead to a successful MLB hitter. 
+### Part 1: Data Access
+Initial setup for the project, loading in the required packages.
+```{r}
+library(tidyverse)
+library(mosaic)
+```
+
+The first data source is Baseball-Reference, where I was able to download the data in CSV format. These tables contain the more basic MLB player stats from 2019, 2020, and 2021.
+```{r}
+MLBData2019 <- read.csv("MLBData2019.csv")
+MLBData2020 <- read.csv("MLBData2020.csv")
+MLBData2021 <- read.csv("MLBData2021.csv")
+```
+The second data source is Baseball Savant, who published Statcast metrics collected from MLB games like exit velocity and launch angle. This data was also available in CSV format.
+```{r}
+Statcast2019 <- read.csv("Statcast2019.csv")
+Statcast2020 <- read.csv("Statcast2020.csv")
+Statcast2021 <- read.csv("Statcast2021.csv")
+```
+
+To get a feel for the data tables, we will use some functions to look at the table. 
+```{r}
+glimpse(Statcast2019)
+glimpse(MLBData2019)
+```
+
+### Part 2: Data Wrangling
+From the initial view of our data sets, we determined that a year variable needs to be added to the MLBData tables we have made. Also, we determined that a limit should be set on minimum At Bats, so only players with a reasonable sample size are included in analysis. We also want to create a variable that holds all Extra-base hits, which include doubles, triples, and home runs.
+```{r}
+MLBData2019 <-
+  MLBData2019 %>%
+  mutate(Year = 2019) %>%
+  filter(AB >= 200) %>%
+  group_by(Player) %>%
+  mutate(XBH = sum(X2B, X3B, HR))
+
+MLBData2020 <-
+  MLBData2020 %>%
+  mutate(Year = 2020) %>%
+  # For 2020, the season was only 60 games so 75 at bats was used for the minimum. 
+  filter(AB >= 75) %>%
+  group_by(Player) %>%
+  mutate(XBH = sum(X2B, X3B, HR))
+  
+
+
+MLBData2021 <-
+  MLBData2021 %>%
+  mutate(Year = 2021) %>%
+  filter(AB >= 200) %>%
+  group_by(Player) %>%
+  mutate(XBH = sum(X2B, X3B, HR))
+
+```
+
+To be able to join the MLBData and Statcast tables, we will need to join by player name. However, the data sets store player names in different ways. The next step of data wrangling is to make the players name represented the same. There are also variables we do not need, so we will select only the variables we plan to use in analysis. 
+```{r}
+Statcast2019 <-
+  Statcast2019 %>%
+  mutate(Player = paste(Statcast2019$first_name, Statcast2019$last_name, sep = " ")) %>%
+  select(Player, avg_hit_angle, anglesweetspotpercent, avg_hit_speed, ev95percent, brl_percent)
+
+Statcast2020 <-
+  Statcast2020 %>%
+  mutate(Player = paste(Statcast2020$first_name, Statcast2020$last_name, sep = " ")) %>%
+  select(Player, avg_hit_angle, anglesweetspotpercent, avg_hit_speed, ev95percent, brl_percent)
+
+Statcast2021 <-
+  Statcast2021 %>%
+  mutate(Player = paste(Statcast2021$first_name, Statcast2021$last_name, sep = " ")) %>%
+  select(Player, avg_hit_angle, anglesweetspotpercent, avg_hit_speed, ev95percent, brl_percent)
+```
+
+While trying to join the data tables, we found that the Player column in the Statcast tables contained a leading white space causing the Player variable not to match between the two tables. This needs to be removed to continue our data wrangling.
+
+```{r}
+for(i in 1:nrow(Statcast2019)) {
+  Statcast2019[i, ]$Player <- trimws(Statcast2019[i, ]$Player, "l", whitespace = "[ \t\r\n]")
+}
+
+for(i in 1:nrow(Statcast2020)) {
+  Statcast2020[i, ]$Player <- trimws(Statcast2020[i, ]$Player, "l", whitespace = "[ \t\r\n]")
+}
+
+for(i in 1:nrow(Statcast2021)) {
+  Statcast2021[i, ]$Player <- trimws(Statcast2021[i, ]$Player, "l", whitespace = "[ \t\r\n]")
+}
+```
+
+Shown below is the joining of the yearly MLB data frames with the yearly Statcast data frames. They are inner joined by player name so each of the players stats matach up.
+
+```{r}
+Total2019Data <-
+  MLBData2019 %>%
+  inner_join(Statcast2019, by = "Player")
+
+Total2020Data <-
+  MLBData2020 %>%
+  inner_join(Statcast2020, by = "Player")
+
+Total2021Data <-
+  MLBData2021 %>%
+  inner_join(Statcast2021, by = "Player")
+```
+
+Create a data table that contains information from all of the joined data sets.
+```{r}
+MLBDataTotal <- 
+  rbind(Total2019Data, Total2020Data, Total2021Data)
+```
+
+Upon looking at different graphs, there was an outlier that did not seem correct. Looking into it we found Luis Garcia's avg_hit_angle was wrong in our data. We checked data points across other players and they were all correct, so we deemed this to be an outlier and updated the value.
+```{r}
+MLBDataTotal[841, ]$avg_hit_angle <- 4.1
+```
+
+### Part 3: Data Visualization
+
+To begin our visualization, we wanted to look into the connection between a player's average Exit Velocity and their Batting Average. Batting Average is an important stat, as it is the percent of at bats in which a batter will get a hit.
+```{r}
+ggplot(data = MLBDataTotal, aes(x = avg_hit_speed, y = AVG)) +
+         geom_point() +
+         geom_smooth(method = lm) +
+         labs(title = "Batting Average and Average Exit Velocity", 
+              x = "Average Exit Velocity", y = "Batting Average")
+```
+
+While Batting Average is important, it is also important to see how many Extra Base Hits (XBH) a player gets, as these hits provide more value to a game. 
+```{r}
+ggplot(data = MLBDataTotal, aes(x = avg_hit_speed, y = XBH)) + 
+  geom_point()  + aes(color = avg_hit_angle)  + stat_spline() + 
+  theme(legend.position = "right") + 
+  labs(title = "XBH and Exit Velocity colored by Launch Angle", subtitle = "",
+       x = "Exit Velocity", color = "Launch Angle")
+```
+This visualization displays multiple trends in our data sets. Overall there is a positive correlation between Extra Base Hits and and Exit Velocity, but the model shows us that increases in Exit Velocity between 85 and 90 MPH has the largest positive impact on Extra Base Hits. Also looking into the color of the points, the players with the most Extra Base Hits all colored intermediately, showing that players at the extremes of their launch angles are less likely to hit a high number of Extra Base Hits. To further investigate this, we will make a boxplot to see how these variables correlate broken down into groups.
+```{r}
+ggplot(data = MLBDataTotal, aes(x = ntiles(avg_hit_angle), y = XBH)) + 
+  geom_boxplot() + 
+  labs(title = "XBH and Launch Angle Boxplot",
+       x = "Launch Angle (Groups)")
+```
+
+The boxplot shows that players in the highest or second highest group of launch angles will lead to similar Extra Base Hit numbers, but players in the lowest group of launch angles can expect to get less Extra Base Hits. \n
+\n
+To further see how the trend between Exit Velocity and Extra Base Hits impacts a team, we wanted to see how the trend differed by position.
+
+```{r}
+ggplot(data = MLBDataTotal, aes(x = avg_hit_speed, y = XBH)) + 
+  geom_point()  + aes(color = avg_hit_angle)  + stat_spline() + 
+  facet_wrap(~ Pos) +
+  theme(legend.position = "right") + 
+  labs(title = "XBH and Exit Velocity colored by Launch Angle", subtitle = "Facet by position",
+       x = "Exit Velocity", color = "Launch Angle")
+```
+While most positions share a similar graph to the graph of all players, the Designated Hitter (DH) position shows a much higher correlation between XBH and Exit Velocity, meaning this position should be filled by someone who hits the ball very hard on average. 
+
+### Conclusions from the data analysis
+From our analysis on the data, we found that Exit Velocity has a positive correlation with Batting Average and Extra Base Hits, so a player with a high average Exit Velocity is expected to perform highly. Launch angle also plays a rule in a player's batting success, and players in the bottom third of average launch angle will perform worse, but being in the top two thirds of average launch angle does not have much impact on a player's success. In looking for a designated hitter, average Exit Velocity should play a big role in a team's search as the correlation is higher within designated hitters. 
+
+
+
+
+
+
+
