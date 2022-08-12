@@ -1,0 +1,56 @@
+---
+title: "Maines-Sweetall Final EDA"
+output: html_notebook
+---
+
+1. Guiding Question
+
+- What key sabermetric stats gathered from Statcast have the greatest influence on basic stats (Batting Average, OPS, etc.) found in the Baseball-Reference database?
+
+2. Data Intake
+
+```{r} 
+# Data Intake for source 1
+MLBData2019 <- read.csv("MLBData2019.csv")
+MLBData2020 <- read.csv("MLBData2020.csv")
+MLBData2021 <- read.csv("MLBData2021.csv")
+
+MLBData2019 <-
+  MLBData2019 %>%
+  mutate(Year = 2019)
+
+MLBData2020 <-
+  MLBData2020 %>%
+  mutate(Year = 2020)
+
+MLBData2021 <-
+  MLBData2021 %>%
+  mutate(Year = 2021)
+
+MLBDataTotal <- rbind(MLBData2019, MLBData2020, MLBData2021)
+
+# Data Intake for source 2
+Statcast2019 <- read.csv("Statcast2019.csv")
+Statcast2020 <- read.csv("Statcast2020.csv")
+Statcast2021 <- read.csv("Statcast2021.csv")
+```
+
+3. Examination
+
+a. The data (source 1) was collected from the 2019, 2020, and 2021 MLB seasons. This data was collected and published by Baseball-Reference, and it was published to provide everyone the ability to examine and analyze MLB stats.
+
+b. Player, Team, Position, Games Played, At Bats, Runs, Homeruns, Doubles, Triples, Hits, RBI's, AVG, SLG, OPS, OBP, and Year. The counting stats, like At Bats and Runs are integers, the cumulative stats like AVG are floats, and name and team are strings.
+
+a. The data (source 2) consists of advanced stats from the 2019, 2020, and 2021 MLB seasons collected by Statcast. Statcast provides this information so insights can be made from the advanced statistics provided in a game of baseball
+
+b. Key variables include first name, last name, avg_launch_angle, exit_velo, and a few others. These are stored as floats. 
+
+4. Discover/Explore features
+- One outlier in the data set is that the entirety of the 2020 MLB season was 60 games, so each player played in much less games than a regular season. This has to be considered in analysis because of the smaller than usual sample size for player stats in 2020. 
+- As seen above in the data intake phase, we have already completed some transformations and mutations on the data frames. To start, we added a year variable to each data frame, then joined the data from all three years into one larger database. A similar process will be used for the Statcast data that was brought into R. 
+- Within a lot of the cases, the variables for each case contain similar variables, and there are 3 or less cases for each player depending on how many seasons they played from 2019-2021. 
+
+5. Address research question
+- Our intuition is that exit velocity and barrel percentage are going to be very important in influence hitting stats for players. 
+- Some observations to refine our process is that we could get a smaller dataframe by using only hitters that reached a certain number of at-bats in a season, avoiding cases with very small sample sizes. Additionally we will look into adding more data frames with variables such as team win percentage to see how players stats are correlated to this.
+
